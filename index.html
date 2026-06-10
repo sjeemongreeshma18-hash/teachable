@@ -228,6 +228,20 @@
             animation: borderPulse 2s ease-in-out infinite;
         }
 
+        .target-colour-banner {
+            text-align: center;
+            margin-bottom: 12px;
+            padding: 12px 16px;
+            border-radius: 14px;
+            background: linear-gradient(135deg, #ffca00 0%, #63cee3 100%);
+            color: #fff;
+            font-size: 1.15rem;
+            font-weight: 800;
+            letter-spacing: 0.02em;
+            box-shadow: 0 8px 18px rgba(99, 206, 227, 0.25);
+            text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.18);
+        }
+
         @keyframes borderPulse {
             0%, 100% { box-shadow: 0 5px 20px rgba(99, 206, 227, 0.3); }
             50% { box-shadow: 0 5px 30px rgba(99, 206, 227, 0.6); }
@@ -343,6 +357,109 @@
             font-size: 0.95em;
             font-weight: 600;
             animation: statusGlow 1.5s ease-in-out infinite;
+        }
+
+        .celebration-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.45);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            padding: 20px;
+        }
+
+        .celebration-overlay.show {
+            display: flex;
+            animation: fadeIn 0.25s ease;
+        }
+
+        .celebration-card {
+            background: linear-gradient(135deg, #fff6b7 0%, #63cee3 45%, #ffca00 100%);
+            border: 5px solid #fff;
+            border-radius: 24px;
+            padding: 28px;
+            text-align: center;
+            max-width: 420px;
+            width: 100%;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.35);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .celebration-card::before,
+        .celebration-card::after {
+            content: '✨';
+            position: absolute;
+            font-size: 2rem;
+            animation: sparkle 1.2s linear infinite;
+            opacity: 0.7;
+        }
+
+        .celebration-card::before { top: 10px; left: 12px; }
+        .celebration-card::after { top: 12px; right: 14px; animation-delay: 0.6s; }
+
+        .celebration-badge {
+            font-size: 2.6rem;
+            margin-bottom: 8px;
+            animation: bounceIn 0.6s ease;
+        }
+
+        .celebration-title {
+            font-size: 1.8rem;
+            color: #2f3e46;
+            font-weight: 800;
+            margin-bottom: 8px;
+        }
+
+        .celebration-text {
+            color: #16324d;
+            font-size: 1.05rem;
+            line-height: 1.5;
+            margin-bottom: 8px;
+        }
+
+        .celebration-score {
+            display: inline-block;
+            margin-top: 6px;
+            background: rgba(255, 255, 255, 0.9);
+            color: #0d3b66;
+            border-radius: 999px;
+            padding: 8px 14px;
+            font-weight: 700;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+        }
+
+        .next-colour-button {
+            margin-top: 14px;
+            padding: 10px 18px;
+            border: none;
+            border-radius: 999px;
+            background: linear-gradient(135deg, #63cee3 0%, #ffca00 100%);
+            color: #fff;
+            font-size: 1rem;
+            font-weight: 700;
+            cursor: pointer;
+            box-shadow: 0 6px 16px rgba(0, 0, 0, 0.18);
+            transition: transform 0.15s ease, box-shadow 0.15s ease;
+        }
+
+        .next-colour-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 18px rgba(0, 0, 0, 0.22);
+        }
+
+        @keyframes sparkle {
+            0% { transform: translateY(0) rotate(0deg); }
+            50% { transform: translateY(-3px) rotate(8deg); }
+            100% { transform: translateY(0) rotate(0deg); }
+        }
+
+        @keyframes bounceIn {
+            0% { transform: scale(0.7); opacity: 0; }
+            70% { transform: scale(1.05); opacity: 1; }
+            100% { transform: scale(1); }
         }
 
         @keyframes statusGlow {
@@ -494,12 +611,25 @@
                 </div>
 
                 <div class="webcam-container">
-                    <div id="webcam-container"></div>
+                    <div style="width: 100%;">
+                        <div class="target-colour-banner" id="target-colour-banner">Find the colour: <span id="target-colour-name">Red</span></div>
+                        <div id="webcam-container"></div>
+                    </div>
                 </div>
 
                 <div id="label-container"></div>
 
                 <div class="status" id="tfjs-status"></div>
+
+                <div class="celebration-overlay" id="celebration-overlay" aria-live="polite">
+                    <div class="celebration-card">
+                        <div class="celebration-badge">🌟✨🎉</div>
+                        <div class="celebration-title" id="celebration-title">You found the colour!</div>
+                        <div class="celebration-text" id="celebration-text">Brilliant job! That colour is correct and your little star did amazing.</div>
+                        <div class="celebration-score" id="celebration-score">100%</div>
+                        <button class="next-colour-button" id="next-colour-button" type="button">Next Colour</button>
+                    </div>
+                </div>
 
                 <div class="features">
                     <div class="feature-item">
@@ -525,9 +655,17 @@
     <script>
         const MODEL_URL = "https://teachablemachine.withgoogle.com/models/oSzr7R5d3/";
         const ANIMALS = ['🐕', '🐈', '🐇', '🐦', '🦊', '🐨', '🐼', '🦁', '🐸', '🐢'];
-        
+        const CORRECT_CONFIDENCE = 0.92;
+        const COLOR_KEYWORDS = ['red', 'blue', 'green', 'yellow', 'orange', 'pink', 'purple', 'brown', 'black', 'white', 'gray', 'grey'];
+
         let tfjsInitialized = false;
         let tfjsModel, tfjsWebcam, tfjsLabelContainer, tfjsMaxPredictions;
+        let tfjsCelebrationActive = false;
+        let targetColourLabel = '';
+        let targetColourOptions = [];
+        let targetColourIndex = 0;
+
+        document.getElementById('next-colour-button').addEventListener('click', nextTargetColour);
 
         // Ensure libraries are loaded
         window.addEventListener('load', async function() {
@@ -577,6 +715,21 @@
 
                 tfjsModel = await tmImage.load(modelURL, metadataURL);
                 tfjsMaxPredictions = tfjsModel.getTotalClasses();
+                const labels = tfjsModel.getClassLabels();
+                targetColourOptions = labels.filter((label) => COLOR_KEYWORDS.some((keyword) => label.toLowerCase().includes(keyword)));
+
+                if (targetColourOptions.length === 0) {
+                    targetColourOptions = labels;
+                }
+
+                window.targetColourOptions = targetColourOptions;
+                targetColourIndex = 0;
+                window.targetColourIndex = targetColourIndex;
+                targetColourLabel = targetColourOptions[0] || 'Red';
+                window.targetColourLabel = targetColourLabel;
+
+                document.getElementById('tfjs-status').innerHTML = `👀 Show the colour: <strong>${targetColourLabel}</strong> from the camera. Keep the webcam on until you spot it!`;
+                document.getElementById('target-colour-name').textContent = targetColourLabel;
 
                 const flip = true;
                 tfjsWebcam = new tmImage.Webcam(300, 300, flip);
@@ -621,9 +774,12 @@
                 button.disabled = false;
                 button.onclick = stopTFJS;
                 
-                document.getElementById('tfjs-status').innerHTML = '✓ Webcam active - Real-time classification running...';
-                
+                document.getElementById('tfjs-status').innerHTML = `👀 Show the colour: <strong>${targetColourLabel}</strong> from the camera. Keep the webcam on until you spot it!`;
+                document.getElementById('target-colour-name').textContent = targetColourLabel;
+
                 tfjsInitialized = true;
+                window.tfjsInitialized = true;
+                window.tfjsWebcam = tfjsWebcam;
                 tfjsLoop();
             } catch (error) {
                 console.error('Error initializing TFJS:', error);
@@ -634,14 +790,41 @@
         }
 
         async function tfjsLoop() {
-            if (!tfjsInitialized) return;
-            tfjsWebcam.update();
-            await tfjsPredict();
-            window.requestAnimationFrame(tfjsLoop);
+            const isActive = window.tfjsInitialized !== undefined ? window.tfjsInitialized : tfjsInitialized;
+            const isCelebrating = window.tfjsCelebrationActive !== undefined ? window.tfjsCelebrationActive : tfjsCelebrationActive;
+            const webcam = window.tfjsWebcam || tfjsWebcam;
+
+            if (!isActive || isCelebrating || !webcam) return;
+
+            try {
+                webcam.update();
+                await tfjsPredict();
+            } finally {
+                const activeNow = window.tfjsInitialized !== undefined ? window.tfjsInitialized : tfjsInitialized;
+                const celebratingNow = window.tfjsCelebrationActive !== undefined ? window.tfjsCelebrationActive : tfjsCelebrationActive;
+                if (activeNow && !celebratingNow) {
+                    window.requestAnimationFrame(tfjsLoop);
+                }
+            }
         }
 
         async function tfjsPredict() {
+            if (tfjsCelebrationActive) return;
+
             const prediction = await tfjsModel.predict(tfjsWebcam.canvas);
+            const topPrediction = prediction.reduce((best, current, index, array) => {
+                return current.probability > array[best].probability ? index : best;
+            }, 0);
+
+            const topProbability = prediction[topPrediction].probability;
+            const topLabel = prediction[topPrediction].className;
+
+            if (topLabel === targetColourLabel && topProbability >= CORRECT_CONFIDENCE) {
+                tfjsCelebrationActive = true;
+                showCelebration(topLabel, (topProbability * 100).toFixed(1));
+                return;
+            }
+
             for (let i = 0; i < tfjsMaxPredictions; i++) {
                 const confidence = prediction[i].probability * 100;
                 const confidencePercent = confidence.toFixed(1);
@@ -678,8 +861,46 @@
             }
         }
 
+        function showCelebration(label, confidence) {
+            const overlay = document.getElementById('celebration-overlay');
+            tfjsCelebrationActive = true;
+            window.tfjsCelebrationActive = true;
+            document.getElementById('celebration-title').textContent = `Amazing! ${label} is the correct colour!`;
+            document.getElementById('celebration-text').textContent = 'Brilliant job, superstar! You found the right colour with sparkle and smiles. ✨🌈';
+            document.getElementById('celebration-score').textContent = `${confidence}% confidence`;
+            document.getElementById('next-colour-button').textContent = 'Next Colour';
+            overlay.classList.add('show');
+            document.getElementById('tfjs-status').innerHTML = `🎉 Brilliant job! ${label} is the correct colour.`;
+        }
+
+        function nextTargetColour() {
+            const options = window.targetColourOptions && window.targetColourOptions.length ? window.targetColourOptions : targetColourOptions;
+            if (!options.length) return;
+
+            tfjsCelebrationActive = false;
+            window.tfjsCelebrationActive = false;
+            document.getElementById('celebration-overlay').classList.remove('show');
+
+            targetColourIndex = (targetColourIndex + 1) % options.length;
+            window.targetColourIndex = targetColourIndex;
+            targetColourLabel = options[targetColourIndex];
+            window.targetColourLabel = targetColourLabel;
+
+            document.getElementById('tfjs-status').innerHTML = `👀 Show the colour: <strong>${targetColourLabel}</strong> from the camera. Keep the webcam on until you spot it!`;
+            document.getElementById('target-colour-name').textContent = targetColourLabel;
+
+            if ((window.tfjsInitialized !== undefined ? window.tfjsInitialized : tfjsInitialized) && (window.tfjsWebcam || tfjsWebcam)) {
+                window.requestAnimationFrame(tfjsLoop);
+            }
+        }
+
+        window.nextTargetColour = nextTargetColour;
+
         function stopTFJS() {
             tfjsInitialized = false;
+            window.tfjsInitialized = false;
+            tfjsCelebrationActive = false;
+            window.tfjsCelebrationActive = false;
             const button = document.getElementById('tfjs-button');
             button.innerHTML = '🚀 Start Webcam';
             button.onclick = initTFJS;
@@ -688,8 +909,12 @@
                 tfjsWebcam.canvas.parentNode.removeChild(tfjsWebcam.canvas);
             }
             
+            window.tfjsWebcam = null;
             document.getElementById('label-container').innerHTML = '';
             document.getElementById('tfjs-status').innerHTML = '';
+            document.getElementById('target-colour-name').textContent = 'Red';
+            document.getElementById('celebration-overlay').classList.remove('show');
+            targetColourLabel = '';
         }
     </script>
 </body>
